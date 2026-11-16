@@ -274,7 +274,7 @@ body{background:#6ccaff;font-family:system-ui,-apple-system,sans-serif;cursor:po
     <div class="card" data-game="paint" style="--c:#ff6fb1;--d:#c43f80"><div class="pic"><span class="bigemo">🎨🖌️</span></div><b>Pintar a máquina</b></div>
     <div class="card" data-game="puz" style="--c:#2ca24a;--d:#1d7a35"><div class="pic"><span class="bigemo">🧩</span></div><b>Quebra-cabeça</b></div>
   </div>
-  <div id="ver">Versão 7 · 16/11/2026 · <a href="https://github.com/lucasbritoeng/jogos-levi/blob/main/CREDITOS.md" target="_blank" rel="noopener" style="color:#fff">Créditos dos sons</a></div>
+  <div id="ver">Versão 8 · 16/11/2026 · <a href="https://github.com/lucasbritoeng/jogos-levi/blob/main/CREDITOS.md" target="_blank" rel="noopener" style="color:#fff">Créditos dos sons</a></div>
 </div>
 <div id="upd"><span>🔄 Nova versão disponível</span><button id="updBtn">Atualizar</button></div>
 
@@ -902,10 +902,11 @@ const PSTEPS=['escavadeira','cacamba','rolo','betoneira','betoneira','betoneira'
 const PCOLORS=['#f4a261','#8ecae6','#ffd166','#cdb4db','#90be6d','#ff8fab'];
 let PL,pm={},pStep=0,pBusy=false,pColor=PCOLORS[0],pE={},hook={x:0,y:0},roofOnHook=false,pArrow=null,pDoneT;
 function pLayout(){
-  const w=innerWidth,h=innerHeight,v=vm(),port=h>w,W=Math.min(v*26,230);
-  const baseY=port?h*.66:h*.82,lotX=port?w*.5:w*.62;
-  const B=Math.min(w*.42,(baseY-h*.17)/1.75,v*48);
-  return{w,h,v,port,W,baseY,lotX,B,F:B*.36,parkY:port?h*.93:h*.97};
+  const w=innerWidth,h=innerHeight,v=vm(),port=h>w;
+  if(port){const W=Math.min(w*.44,240),baseY=h*.66,lotX=w*.46,B=Math.min(w*.55,(baseY-h*.17)/1.75,v*60);
+    return{w,h,v,port,W,baseY,lotX,B,F:B*.36,hz:40,park:[[w*.27,h*.83],[w*.73,h*.83],[w*.27,h*.975],[w*.73,h*.975]]};}
+  const W=Math.min(w*.19,h*.27/.52,260),baseY=h*.86,lotX=w*.68,B=Math.min(w*.34,(baseY-h*.14)/1.75);
+  return{w,h,v,port,W,baseY,lotX,B,F:B*.36,hz:34,park:[[w*.12,h*.66],[w*.32,h*.66],[w*.12,h*.97],[w*.32,h*.97]]};
 }
 function mkPM(kind){
   const el=document.createElement('div');el.className='pm';el.innerHTML=MACHINES[kind].svg();sPredio.appendChild(el);
@@ -914,10 +915,10 @@ function mkPM(kind){
   return m;
 }
 function setM(m){m.el.style.transform=`translate(${m.x-m.W/2}px,${m.y-m.H}px) scaleX(${m.f})`;m.el.style.zIndex=Math.round(m.y);}
-function parkPos(i){const sp=PL.W*.95,x0=PL.port?PL.w/2-1.5*sp:PL.w*.05+PL.W/2;return{x:x0+i*sp,y:PL.parkY};}
+function parkPos(i){const p=PL.park[i];return{x:p[0],y:p[1]};}
 const PORDER=['escavadeira','cacamba','rolo','betoneira'];
 async function moveM(m,x,y,dur,o){
-  o=o||{};const x0=m.x,y0=m.y;m.f=o.f!==undefined?o.f:(x<x0?-1:1);
+  o=o||{};if(!o.free)x=clamp(x,m.W*.42,PL.w-m.W*.42);const x0=m.x,y0=m.y;m.f=o.f!==undefined?o.f:(x<x0?-1:1);
   m.el.classList.add('moving');if(!o.quiet)rumble(dur/1000+.1,.15);if(o.beep)SND2.beepRev(dur);
   await tween(dur,e=>{m.x=x0+(x-x0)*e;m.y=y0+(y-y0)*e;setM(m);});
   m.el.classList.remove('moving');
@@ -927,7 +928,7 @@ function bp(cls,css,html){const d=document.createElement('div');d.className='bp 
 const BUCKET=`<svg viewBox="0 0 60 70"><path d="M14 10 Q30 -8 46 10" fill="none" stroke="#444" stroke-width="3"/><path d="M8 10 H52 L44 64 H16Z" fill="#6f6f6f" stroke="#444" stroke-width="3"/><path class="bfill" d="M10 14 H50 L48 26 H12Z" fill="#a5a5a5" opacity="0"/></svg>`;
 const CRANE=`<svg viewBox="0 0 120 300" preserveAspectRatio="none" style="width:100%;height:100%;display:block"><rect x="88" y="30" width="12" height="270" fill="#ffc61a" stroke="#c99700" stroke-width="2"/><polyline points="88,50 100,70 88,90 100,110 88,130 100,150 88,170 100,190 88,210 100,230 88,250 100,270 88,290" fill="none" stroke="#c99700" stroke-width="2"/><rect x="0" y="30" width="120" height="8" fill="#ffc61a" stroke="#c99700" stroke-width="2"/><path d="M94 8 L2 30 M94 8 L118 30" stroke="#777" stroke-width="1.5"/><rect x="104" y="38" width="14" height="12" fill="#777"/><rect x="82" y="38" width="22" height="16" rx="2" fill="#ffc61a" stroke="#c99700" stroke-width="2"/><rect x="86" y="41" width="9" height="7" fill="#9fdcff"/><rect x="91" y="4" width="6" height="26" fill="#ffc61a" stroke="#c99700" stroke-width="1.5"/></svg>`;
 function buildPredio(){
-  sPredio.innerHTML='';PL=pLayout();const {w,h,v,B,F,baseY,lotX}=PL;
+  sPredio.innerHTML='';PL=pLayout();const {w,h,v,B,F,baseY,lotX}=PL;sPredio.style.background=`linear-gradient(#6ccaff 0,#c4ecff ${PL.hz}%,#d9a35b ${PL.hz}%,#c48d48 100%)`;
   const sun=document.createElement('div');sun.className='sun';sun.style.cssText='top:4%;right:5%;width:11vmin;height:11vmin';sPredio.appendChild(sun);
   bp('','left:'+(lotX-B*.8)+'px;top:'+(baseY-B*.16)+'px;width:'+(B*1.6)+'px;height:'+(B*.34)+'px;border-radius:50%;background:#c48d48;border:.6vmin dashed #ff8c1a');
   const cw=(B+14*v)/.79,cl=lotX-B/2-8*v,ct=h*.08,ch=baseY-ct;
@@ -935,7 +936,7 @@ function buildPredio(){
   pE.crane.addEventListener('pointerdown',e=>{e.stopPropagation();e.preventDefault();initAudio();tapP('guindaste');});
   PL.jibY=ct+ch*(34/300);
   pE.hole=bp('hole',`left:${lotX}px;top:${baseY-B*.03}px;width:${B*1.05}px;height:${B*.24}px`);
-  pE.pile=bp('pile',`left:${lotX+B*.78}px;top:${baseY+3*v}px;width:${B*.5}px;z-index:${Math.round(baseY+3*v)}`,`<svg viewBox="0 0 100 50"><path d="M0 50 Q15 6 50 4 Q85 6 100 50Z" fill="#8a5a2b"/><circle cx="35" cy="24" r="5" fill="#a46c36"/><circle cx="64" cy="30" r="4" fill="#6f4520"/></svg>`);
+  pE.pile=bp('pile',`left:${Math.min(lotX+B*.72,w-B*.26)}px;top:${baseY+3*v}px;width:${B*.5}px;z-index:${Math.round(baseY+3*v)}`,`<svg viewBox="0 0 100 50"><path d="M0 50 Q15 6 50 4 Q85 6 100 50Z" fill="#8a5a2b"/><circle cx="35" cy="24" r="5" fill="#a46c36"/><circle cx="64" cy="30" r="4" fill="#6f4520"/></svg>`);
   pE.flat=bp('flat',`left:${lotX-B*.58}px;top:${baseY-B*.05}px;width:${B*1.16}px;height:${B*.1}px`);
   pE.found=bp('found',`left:${lotX-B*.56}px;top:${baseY-B*.1}px;width:${B*1.12}px;height:${B*.11}px;z-index:2`);
   pE.floors=[0,1,2].map(k=>bp('floor',`left:${lotX-B/2}px;top:${baseY-B*.1-(k+1)*F}px;width:${B}px;height:${F}px;z-index:2`,
@@ -997,12 +998,12 @@ async function stepDig(m){
   await toPark(m);
 }
 async function stepHaul(m){
-  const {B,baseY,lotX,v,w}=PL,g=gen,px=lotX+B*.78;
+  const {B,baseY,lotX,v,w}=PL,g=gen,px=Math.min(lotX+B*.72,w-B*.26);
   await moveM(m,px+m.W*.14,baseY+v*6,1900);if(g!==gen)return;
   pE.pile.classList.remove('on');for(let t=0;t<1.2;t+=.2)noise(.15,.4,500,1,t);
   await sleep(1400);if(g!==gen)return;
-  await moveM(m,w+m.W,baseY+v*6,1500);if(g!==gen)return;
-  m.x=-m.W;m.y=PL.parkY;setM(m);
+  await moveM(m,w+m.W,baseY+v*6,1500,{free:true});if(g!==gen)return;
+  m.x=-m.W;m.y=parkPos(1).y;setM(m);
   await toPark(m);
 }
 async function stepRoll(m){
@@ -1082,18 +1083,38 @@ function resetPredio(){
 }
 
 // ================= JOGO 5: lava-jato =================
-const sWash=$('sWash'),MLIST=['betoneira','cacamba','escavadeira','rolo'];
+MACHINES.carregadeira={svg(){return `<svg viewBox="-10 0 330 170" overflow="visible">
+  <path d="M20 122 V80 Q20 70 30 70 H178 V122Z" fill="#ffc61a" stroke="#c99700" stroke-width="4" stroke-linejoin="round"/><rect x="30" y="80" width="40" height="8" fill="#333"/><rect x="30" y="94" width="40" height="8" fill="#333"/>
+  <path d="M110 70 V22 Q110 16 116 16 H160 Q168 16 170 24 L176 70Z" fill="#ffc61a" stroke="#c99700" stroke-width="4" stroke-linejoin="round"/><path d="M120 26 H158 L164 64 H120Z" fill="#9fdcff" stroke="#333" stroke-width="3"/>
+  <path d="M170 98 L250 72 L258 86 L178 112Z" fill="#ffc61a" stroke="#c99700" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M244 46 L314 56 L308 120 L246 114 Q236 80 244 46Z" fill="#6f6f6f" stroke="#333" stroke-width="4" stroke-linejoin="round"/><path d="M252 112 l-2 8 M268 114 l0 8 M284 116 l0 8 M300 118 l2 8" stroke="#333" stroke-width="4"/>
+  ${wheel(70,130,36)}${wheel(196,130,36)}</svg>`;}};
+MACHINES.trator={svg(){return `<svg viewBox="-10 0 330 170" overflow="visible">
+  <path d="M110 80 H252 Q264 80 264 92 V116 H110Z" fill="#2ca24a" stroke="#1d7a35" stroke-width="4" stroke-linejoin="round"/><path d="M150 88 V112 M170 88 V112 M190 88 V112" stroke="#1d7a35" stroke-width="3"/>
+  <rect x="232" y="54" width="9" height="28" rx="2" fill="#555"/>
+  <path d="M20 112 V68 H124 V112Z" fill="#2ca24a" stroke="#1d7a35" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M30 68 V16 H114 V68" fill="none" stroke="#333" stroke-width="6"/><rect x="22" y="8" width="100" height="12" rx="4" fill="#ffd21f" stroke="#c9a200" stroke-width="3"/>
+  <path d="M38 24 H106 V64 H38Z" fill="#9fdcff" opacity=".75"/><rect x="62" y="40" width="22" height="24" rx="4" fill="#3a3a3a"/>
+  ${wheel(70,118,48)}${wheel(232,138,27)}</svg>`;}};
+MACHINES.pipa={svg(){return `<svg viewBox="-10 0 330 170" overflow="visible">
+  <rect x="10" y="114" width="300" height="18" rx="5" fill="#444"/>
+  <rect x="14" y="42" width="196" height="72" rx="34" fill="#eef7ff" stroke="#2c7be5" stroke-width="5"/>
+  <path d="M34 58 H190" stroke="#2c7be5" stroke-width="6"/>
+  <text x="112" y="98" text-anchor="middle" font-size="24" font-weight="900" fill="#2c7be5" font-family="system-ui,sans-serif">ÁGUA</text>
+  <rect x="96" y="30" width="30" height="14" rx="3" fill="#2c7be5"/>
+  ${cab('#2c7be5','#1d4f99')}${wheel(62)}${wheel(114)}${wheel(262)}</svg>`;}};
+const sWash=$('sWash'),MLIST=['betoneira','cacamba','escavadeira','rolo'],WLIST=['betoneira','carregadeira','cacamba','trator','escavadeira','pipa','rolo'];
 let wIdx=0,wM=null,wBusy=true,wPtr=new Map(),mudTotal=0,wChk=0,sponge=null,wHintT,wHintEl,wScrubDist=0;
 function buildWash(){
   sWash.innerHTML='';const h=innerHeight;
-  sWash.insertAdjacentHTML('beforeend',`<div class="wfloor" style="top:${(innerHeight>innerWidth?.7:.84)*100}%"></div><div class="wpost" style="left:3%"></div><div class="wpost" style="right:3%"></div><div class="wbeam">LAVA-JATO</div>`);
+  sWash.insertAdjacentHTML('beforeend',`<div class="wfloor" style="top:${(innerHeight>innerWidth?.68:.87)*100}%"></div><div class="wpost" style="left:3%"></div><div class="wpost" style="right:3%"></div><div class="wbeam">LAVA-JATO</div>`);
   for(let i=0;i<10;i++){const d=document.createElement('div');d.className='drop';d.style.cssText=`left:${8+i*9.5}%;animation-delay:-${Math.random()*1.2}s;animation-duration:${1+Math.random()*.6}s`;sWash.appendChild(d);}
   sponge=document.createElement('div');sponge.className='sponge';sponge.textContent='🧽';sWash.appendChild(sponge);
   wM=null;nextWashCar();
 }
-function washGeom(ar){const w=innerWidth,h=innerHeight,port=h>w;const W=Math.min(port?w*.9:w*.62,(h*.46)/ar,680),floorY=h*(port?.7:.84);return{W,H:W*ar,floorY,w,h};}
+function washGeom(ar){const w=innerWidth,h=innerHeight,port=h>w;const W=port?Math.min(w*.98,(h*.5)/ar):Math.min(w*.8,(h*.68)/ar,900),floorY=h*(port?.68:.87);return{W,H:W*ar,floorY,w,h};}
 async function nextWashCar(){
-  const g=gen;wBusy=true;const kind=MLIST[wIdx%MLIST.length];wIdx++;
+  const g=gen;wBusy=true;const kind=WLIST[wIdx%WLIST.length];wIdx++;
   const wrap=document.createElement('div');wrap.className='wcar';wrap.innerHTML=MACHINES[kind].svg();sWash.appendChild(wrap);
   const ar=vbRatio(wrap.innerHTML),G=washGeom(ar);
   Object.assign(wrap.style,{width:G.W+'px',left:(G.w/2-G.W/2)+'px',top:(G.floorY-G.H)+'px'});
@@ -1132,7 +1153,7 @@ function scrubAt(id,x,y){
 }
 function checkClean(){
   if(!wM||wBusy)return;let done;
-  if(mudTotal>0){done=countMud()/mudTotal<.1;}else done=wScrubDist>14;
+  if(mudTotal>0){done=countMud()/mudTotal<.02;}else done=wScrubDist>24;
   if(done)finishWash();
 }
 async function finishWash(){
@@ -1152,7 +1173,13 @@ sWash.addEventListener('pointerdown',e=>{if(mode!=='wash'||!wM||wBusy)return;e.p
 window.addEventListener('pointermove',e=>{if(mode!=='wash'||!wM||wBusy||!waterSrc&&!wPtr.size)return;if(e.buttons===0&&e.pointerType==='mouse')return;scrubAt(e.pointerId,e.clientX,e.clientY);moveSponge(e);});
 ['pointerup','pointercancel'].forEach(t=>window.addEventListener(t,e=>{if(mode!=='wash')return;wPtr.delete(e.pointerId);if(!wPtr.size){waterOff();if(sponge)sponge.style.display='none';showWHintSoon();}}));
 function moveSponge(e){if(!sponge)return;sponge.style.display='block';sponge.style.left=e.clientX+'px';sponge.style.top=e.clientY+'px';}
-function showWHintSoon(){clearTimeout(wHintT);if(mode!=='wash')return;wHintT=later(()=>{if(!wM||wBusy||wHintEl||wPtr.size)return;const r=wM.wrap.getBoundingClientRect(),d=r.width*.3;wHintEl=hand(r.left+r.width/2,r.top+r.height*.4,[{transform:`translateX(${-d}px)`},{transform:`translateX(${d}px)`},{transform:`translateX(${-d}px)`}],1600);},4000);}
+function mudSpot(){try{const c=wM.cv,d=wM.ctx.getImageData(0,0,c.width,c.height).data,pts=[];for(let i=3;i<d.length;i+=64)if(d[i]>40)pts.push((i-3)/4);if(!pts.length)return null;
+  let best=null,bn=-1;for(let t=0;t<12;t++){const p=pts[Math.floor(Math.random()*pts.length)],x=p%c.width,y=Math.floor(p/c.width);let n=0;for(const q of pts){const qx=q%c.width,qy=Math.floor(q/c.width);if(Math.abs(qx-x)<c.width*.08&&Math.abs(qy-y)<c.width*.08)n++;}if(n>bn){bn=n;best={x,y};}}
+  const r=c.getBoundingClientRect(),k=c.width/r.width;return{x:r.left+best.x/k,y:r.top+best.y/k};}catch(e){return null;}}
+function showWHintSoon(){clearTimeout(wHintT);if(mode!=='wash')return;wHintT=later(()=>{if(!wM||wBusy||wHintEl||wPtr.size)return;
+  const sp=(mudTotal>0&&countMud()/mudTotal<.5)?mudSpot():null;
+  if(sp){wHintEl=hand(sp.x,sp.y,[{transform:'translate(-3vmin,0)'},{transform:'translate(3vmin,-1vmin)'},{transform:'translate(-3vmin,0)'}],900);return;}
+  const r=wM.wrap.getBoundingClientRect(),d=r.width*.3;wHintEl=hand(r.left+r.width/2,r.top+r.height*.4,[{transform:`translateX(${-d}px)`},{transform:`translateX(${d}px)`},{transform:`translateX(${-d}px)`}],1600);},3500);}
 function hideWHint(){clearTimeout(wHintT);if(wHintEl){wHintEl.remove();wHintEl=null;}}
 
 // ================= JOGO 6: pintar a máquina =================
@@ -1215,7 +1242,7 @@ function buildPuz(){sPuz.innerHTML='<div class="pzground"></div>';newPuzzle(fals
 function newPuzzle(again){
   const g=gen;sPuz.querySelectorAll('.pz,.pzslot,.pzfull').forEach(e=>e.remove());pzP=[];pzDrag=null;
   if(again)pzIdx--;
-  const kind=MLIST[pzIdx%MLIST.length],n=PZSEQ[pzIdx%PZSEQ.length];pzIdx++;
+  const kind=WLIST[pzIdx%WLIST.length],n=PZSEQ[pzIdx%PZSEQ.length];pzIdx++;
   const svg=MACHINES[kind].svg(),ar=vbRatio(svg),w=innerWidth,h=innerHeight,v=vm(),port=h>w;
   const W=port?Math.min(w*.82,h*.28/ar):Math.min(w*.42,h*.42/ar),H=W*ar,cx=w/2,cy=port?h*.47:h*.53,tx=cx-W/2,ty=cy-H/2;
   pzG={kind,n,W,H,tx,ty,w,h,v,port,svg};
@@ -1272,7 +1299,7 @@ function pzCenter(p){const c=CUTS[pzG.n][p.i];return{x:pzG.tx+(c[0]+c[2])/2*pzG.
 function hidePzHint(){clearTimeout(pzHintT);if(pzHintEl){pzHintEl.remove();pzHintEl=null;}}
 
 // ================= aviso de nova versão =================
-const VERSION=7; let newVer=null;
+const VERSION=8; let newVer=null;
 async function checkUpdate(){
   try{
     const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
