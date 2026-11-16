@@ -85,6 +85,7 @@ body{background:#6ccaff;font-family:system-ui,-apple-system,sans-serif;cursor:po
 .card .pic{overflow:hidden}
 .card .bigemo{font-size:8.5vmin;line-height:15vmin;white-space:nowrap}
 #menu h1{font-size:8vmin}
+#ver a{pointer-events:auto}
 #ver{position:absolute;bottom:2.5vmin;left:0;right:0;text-align:center;color:#fff;font-weight:700;font-size:3.2vmin;opacity:.9}
 #upd{position:absolute;top:3vmin;left:50%;transform:translateX(-50%);z-index:40;display:none;align-items:center;gap:2.5vmin;background:#1f2937;color:#fff;border-radius:3vmin;padding:2vmin 2.5vmin 2vmin 3.5vmin;font-size:3.4vmin;font-weight:700;box-shadow:0 1.5vmin 4vmin rgba(0,0,0,.3);white-space:nowrap;animation:drop .5s cubic-bezier(.4,1.6,.6,1)}
 #upd button{font:inherit;border:0;border-radius:2vmin;padding:1.6vmin 3vmin;background:#ff8c1a;color:#fff;font-weight:900;cursor:pointer}
@@ -273,7 +274,7 @@ body{background:#6ccaff;font-family:system-ui,-apple-system,sans-serif;cursor:po
     <div class="card" data-game="paint" style="--c:#ff6fb1;--d:#c43f80"><div class="pic"><span class="bigemo">🎨🖌️</span></div><b>Pintar a máquina</b></div>
     <div class="card" data-game="puz" style="--c:#2ca24a;--d:#1d7a35"><div class="pic"><span class="bigemo">🧩</span></div><b>Quebra-cabeça</b></div>
   </div>
-  <div id="ver">Versão 6 · 16/11/2026</div>
+  <div id="ver">Versão 7 · 16/11/2026 · <a href="https://github.com/lucasbritoeng/jogos-levi/blob/main/CREDITOS.md" target="_blank" rel="noopener" style="color:#fff">Créditos dos sons</a></div>
 </div>
 <div id="upd"><span>🔄 Nova versão disponível</span><button id="updBtn">Atualizar</button></div>
 
@@ -425,16 +426,54 @@ const SND={
   fanfare(){[523,659,784,1047].forEach((f,i)=>tone(f,.25,'triangle',.22,i*.13));tone(1047,.5,'triangle',.2,.55);},
   splash(){noise(1.2,.35,700,.7);noise(.9,.2,1500,.7,.2);}
 };
-let voices=[];
-function loadVoices(){try{voices=speechSynthesis.getVoices();}catch(e){}}
+let voices=[],bestVoice=null;
+function pickVoice(){
+  const pt=voices.filter(v=>/^pt[-_]BR/i.test(v.lang)),pool=pt.length?pt:voices.filter(v=>/^pt/i.test(v.lang));
+  const sc=v=>{const n=(v.name||'').toLowerCase();let x=0;
+    if(/premium|aprimorad|enhanced|neural|natural|online/.test(n))x+=10;
+    if(/google/.test(n))x+=6;
+    if(/luciana|francisca|thalita|vit[oó]ria|camila|leticia|felipe|antonio/.test(n))x+=3;
+    if(/compact|compacta|eloquence|novelty|grandma|grandpa|rocko|shelley|sandy|reed|flo\b/.test(n))x-=8;
+    return x;};
+  bestVoice=pool.slice().sort((a,b)=>sc(b)-sc(a))[0]||null;
+}
+function loadVoices(){try{voices=speechSynthesis.getVoices();pickVoice();}catch(e){}}
 try{loadVoices();speechSynthesis.onvoiceschanged=loadVoices;}catch(e){}
+// voz gravada (opcional): voz/index.json lista as frases gravadas
+let VOZ={},vozSrc=null;const vozBuf={};
+const slugT=t=>t.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'');
+try{fetch('voz/index.json',{cache:'no-store'}).then(r=>r.ok?r.json():{}).then(j=>{VOZ=j||{};}).catch(()=>{});}catch(e){}
+function stopVoice(){try{speechSynthesis.cancel();}catch(e){}if(vozSrc){try{vozSrc.stop();}catch(e){}vozSrc=null;}}
+function playVoz(k){
+  const go=b=>{if(!ac)return;stopVoice();const src=ac.createBufferSource();src.buffer=b;src.connect(master);src.start();vozSrc=src;};
+  if(vozBuf[k]){go(vozBuf[k]);return true;}
+  fetch('voz/'+VOZ[k]).then(r=>r.arrayBuffer()).then(a=>new Promise((res,rej)=>ac.decodeAudioData(a,res,rej))).then(b=>{vozBuf[k]=b;go(b);}).catch(()=>{delete VOZ[k];});
+  return true;
+}
 function say(t){
+  const k=slugT(t);
+  if(VOZ[k]&&ac){playVoz(k);return;}
   try{
-    const s=window.speechSynthesis; if(!s) return; s.cancel();
-    const u=new SpeechSynthesisUtterance(t); u.lang='pt-BR'; u.rate=1; u.pitch=1.3; u.volume=1;
-    const v=voices.find(v=>/^pt[-_]BR/i.test(v.lang))||voices.find(v=>/^pt/i.test(v.lang)); if(v) u.voice=v;
+    const s=window.speechSynthesis; if(!s) return; stopVoice();
+    if(!bestVoice) loadVoices();
+    const u=new SpeechSynthesisUtterance(t); u.lang='pt-BR'; u.rate=.95; u.pitch=1.06; u.volume=1;
+    if(bestVoice) u.voice=bestVoice;
     s.speak(u);
   }catch(e){}
+}
+// sons reais dos animais (gravações livres em sons/)
+const SAMPLES={moo:'cow',oink:'pig',baa:'sheep',cocorico:'rooster',neigh:'horse',quack:'duck',bark:'dog',meow:'cat',growl:'bear',hoo:'owl',ribbit:'frog',howl:'wolf',dolphin:'dolphin',whale:'whale',roar:'lion',trumpet:'elephant',zebra:'donkey',monkey:'monkey'};
+const sBuf={};let sLoad=null;
+function loadSamples(){
+  if(sLoad||!ac) return sLoad;
+  sLoad=Promise.all(Object.entries(SAMPLES).map(([k,f])=>fetch('sons/'+f+'.mp3').then(r=>r.ok?r.arrayBuffer():Promise.reject()).then(a=>new Promise((res,rej)=>ac.decodeAudioData(a,res,rej))).then(b=>{sBuf[k]=b;}).catch(()=>{})));
+  return sLoad;
+}
+function playSample(k){
+  const b=sBuf[k]; if(!ac||!b) return 0;
+  const d=Math.min(b.duration,3.2),t=ac.currentTime,src=ac.createBufferSource(),g=ac.createGain();
+  src.buffer=b; g.gain.setValueAtTime(1.1,t); g.gain.setValueAtTime(1.1,t+d-.25); g.gain.linearRampToValueAtTime(.0001,t+d);
+  src.connect(g).connect(master); src.start(t); src.stop(t+d+.05); return d;
 }
 
 // ================= cena comum =================
@@ -808,7 +847,7 @@ function tapAnimal(d,e,n,snd){
   bigE.animate([{transform:`translate(${dx}px,${dy}px) scale(.2)`},{transform:'translate(0,0) scale(1.15)',offset:.7},{transform:'translate(0,0) scale(1)'}],{duration:600,easing:'ease-out'});
   bigN.animate([{opacity:0,transform:'translateY(5vmin)'},{opacity:0,offset:.5},{opacity:1,transform:'translateY(0)'}],{duration:800,easing:'ease-out'});
   SND.pop();
-  later(()=>{const dur=ASND[snd]();bigE.animate([{transform:'scale(1) rotate(0)'},{transform:'scale(1.08) rotate(-6deg)'},{transform:'scale(1) rotate(6deg)'},{transform:'scale(1.05) rotate(-3deg)'},{transform:'scale(1) rotate(0)'}],{duration:Math.max(600,dur*1000),easing:'ease-in-out'});later(()=>say(n+'!'),dur*1000+250);},350);
+  later(()=>{const dur=playSample(snd)||ASND[snd]();bigE.animate([{transform:'scale(1) rotate(0)'},{transform:'scale(1.08) rotate(-6deg)'},{transform:'scale(1) rotate(6deg)'},{transform:'scale(1.05) rotate(-3deg)'},{transform:'scale(1) rotate(0)'}],{duration:Math.max(600,dur*1000),easing:'ease-in-out'});later(()=>say(n+'!'),dur*1000+250);},350);
   later(()=>closeOK=true,1500);
   clearTimeout(bigT); bigT=later(closeBig,5200);
   if(!d.classList.contains('found')){
@@ -1233,7 +1272,7 @@ function pzCenter(p){const c=CUTS[pzG.n][p.i];return{x:pzG.tx+(c[0]+c[2])/2*pzG.
 function hidePzHint(){clearTimeout(pzHintT);if(pzHintEl){pzHintEl.remove();pzHintEl=null;}}
 
 // ================= aviso de nova versão =================
-const VERSION=6; let newVer=null;
+const VERSION=7; let newVer=null;
 async function checkUpdate(){
   try{
     const r=await fetch('version.json?t='+Date.now(),{cache:'no-store'}); if(!r.ok) return;
@@ -1259,7 +1298,7 @@ function cleanup(){
   clearTimeout(pDoneT);pBusy=false;roofOnHook=false;sPredio.innerHTML='';hideWHint();waterOff();wPtr.clear();wM=null;sWash.innerHTML='';hidePaHint();paM=null;sPaint.innerHTML='';hidePzHint();pzDrag=null;sPuz.innerHTML=''; sAnim.innerHTML=''; atrack.style.display='none'; atrack.innerHTML='';
   big.style.display='none'; bigOpen=false; aLock=false; nextBtn.style.display='none';
   document.querySelectorAll('.scene').forEach(x=>x.classList.remove('on')); $('upd').style.display='none';
-  try{speechSynthesis.cancel();}catch(e){}
+  stopVoice();
 }
 function startGame(g){
   cleanup(); mode=g; menu.style.display='none'; home.style.display='flex';
@@ -1268,7 +1307,7 @@ function startGame(g){
   SND.fanfare();
   if(g==='tap') say('Vamos fazer massa!');
   else if(g==='drag'){say('Arraste para a betoneira!');for(let i=0;i<4;i++)later(()=>fillSlot(i),300+i*180);showHintSoon();}
-  else if(g==='anim'){$('sAnim').classList.add('on');atrack.style.display='flex';sceneIdx=0;buildScene(0);}
+  else if(g==='anim'){loadSamples();$('sAnim').classList.add('on');atrack.style.display='flex';sceneIdx=0;buildScene(0);}
   else if(g==='predio'){$('sPredio').classList.add('on');NEED=8;buildProg();pStep=0;pBusy=false;buildPredio();}
   else if(g==='wash'){$('sWash').classList.add('on');buildWash();}
   else if(g==='paint'){$('sPaint').classList.add('on');buildPaint();}
